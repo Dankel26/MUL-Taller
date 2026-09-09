@@ -24,12 +24,19 @@ namespace Taller
         [System.NonSerialized] public float fuerzaSaltoExtra = 7f;   // >>> CAMBIA ESTO <<<
 
         PlayerController jugador;
+        Animator animacion;
         InputAction accionSaltar;
         int saltosUsados;
+
+        // El Animator solo sabe si estas en el suelo o no, asi que en el salto extra
+        // hay que pedirle explicitamente que vuelva a reproducir el salto desde el
+        // principio. Si no, el personaje parece flotar.
+        static readonly int EstadoSalto = Animator.StringToHash("Player-Jump");
 
         void Awake()
         {
             jugador = GetComponent<PlayerController>();
+            animacion = GetComponent<Animator>();
             accionSaltar = InputSystem.actions.FindAction("Player/Jump");
         }
 
@@ -53,6 +60,9 @@ namespace Taller
             {
                 saltosUsados = saltosUsados + 1;
                 jugador.velocity.y = fuerzaSaltoExtra;
+
+                if (animacion != null && animacion.HasState(0, EstadoSalto))
+                    animacion.Play(EstadoSalto, 0, 0f);
             }
         }
     }

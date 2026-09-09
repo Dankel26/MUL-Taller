@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using Platformer.Mechanics;
 using Taller;
 using TMPro;
@@ -26,6 +27,7 @@ public static class TallerSetup
     const string RutaTileSuperficie = "Assets/Tiles/TileGroundTop.asset";
     const string RutaTileRelleno = "Assets/Tiles/TileGround.asset";
     const string RutaTileNube = "Assets/Tiles/cloud.asset";
+    const string RutaPastilla = "Assets/_Taller/Arte/PastillaHud.png";
     const string RutaTileMontana = "Assets/Tiles/mountains.asset";
 
     // Medidas del nivel del taller, en unidades del mundo.
@@ -81,6 +83,7 @@ public static class TallerSetup
         VaciarNivel();
         PintarPiso();
         PintarCielo();
+        FusionarColisionesDelTilemap();
         ReubicarPuntosClave();
         SembrarContenidoInicial();
         AjustarLimitesDeCamara();
@@ -92,12 +95,35 @@ public static class TallerSetup
         Debug.Log("[Taller] Nivel_Taller generado.");
     }
 
+    [MenuItem("Taller/4 - Fusionar colisiones del tilemap (escena actual)", false, 4)]
+    public static void FusionarColisionesDeLaEscenaActual()
+    {
+        var escena = EditorSceneManager.GetActiveScene();
+        FusionarColisionesDelTilemap();
+        EditorSceneManager.MarkSceneDirty(escena);
+        EditorSceneManager.SaveScene(escena);
+        Debug.Log("[Taller] Colisiones fusionadas en " + escena.name);
+    }
+
     [MenuItem("Taller/Preparar todo (2 + 3)", false, 20)]
     public static void PrepararTodo()
     {
         GenerarPrefabsDelTaller();
+        ArreglarColisionesDeSampleScene();
         GenerarNivelTaller();
         Debug.Log("[Taller] Preparacion completa.");
+    }
+
+    /// <summary>
+    /// La escena demo tiene el mismo problema de colisiones por tile que el nivel
+    /// del taller, y es la primera que juegan. Solo se le tocan los colliders.
+    /// </summary>
+    static void ArreglarColisionesDeSampleScene()
+    {
+        var escena = EditorSceneManager.OpenScene(RutaSampleScene, OpenSceneMode.Single);
+        FusionarColisionesDelTilemap();
+        EditorSceneManager.MarkSceneDirty(escena);
+        EditorSceneManager.SaveScene(escena);
     }
 
     // ------------------------------------------------------------------
@@ -214,6 +240,37 @@ public static class TallerSetup
         foreach (var mapa in Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             if (mapa.GetComponent<TilemapCollider2D>() != null) return mapa;
         return null;
+    }
+
+    /// <summary>
+    /// Sin CompositeCollider2D cada tile es un collider independiente y el jugador
+    /// engancha en las costuras internas entre tiles, sobre todo al saltar pegado a
+    /// una pared. Fusionarlos deja un solo contorno y las paredes quedan lisas.
+    /// </summary>
+    static void FusionarColisionesDelTilemap()
+    {
+        foreach (var mapa in Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var colision = mapa.GetComponent<TilemapCollider2D>();
+            if (colision == null) continue;
+
+            // CompositeCollider2D exige un Rigidbody2D. Tiene que ser estatico o el
+            // suelo se cae al darle Play.
+            var cuerpo = mapa.GetComponent<Rigidbody2D>();
+            if (cuerpo == null) cuerpo = mapa.gameObject.AddComponent<Rigidbody2D>();
+            cuerpo.bodyType = RigidbodyType2D.Static;
+
+            var compuesto = mapa.GetComponent<CompositeCollider2D>();
+            if (compuesto == null) compuesto = mapa.gameObject.AddComponent<CompositeCollider2D>();
+            compuesto.geometryType = CompositeCollider2D.GeometryType.Polygons;
+            compuesto.generationType = CompositeCollider2D.GenerationType.Synchronous;
+
+            colision.compositeOperation = Collider2D.CompositeOperation.Merge;
+            compuesto.GenerateGeometry();
+
+            EditorUtility.SetDirty(mapa.gameObject);
+            Debug.Log("[Taller] Colisiones fusionadas en el tilemap '" + mapa.gameObject.name + "'.");
+        }
     }
 
     static void ReubicarPuntosClave()
@@ -435,6 +492,15 @@ public static class TallerSetup
     // HUD
     // ------------------------------------------------------------------
 
+    // Paleta del HUD, sacada del propio juego.
+    static readonly Color TintaHud = new Color(0.94f, 0.97f, 1f);
+    static readonly Color FondoHud = new Color(0.04f, 0.09f, 0.15f, 0.66f);
+    static readonly Color FondoHudSuave = new Color(0.04f, 0.09f, 0.15f, 0.48f);
+    static readonly Color TintaSuave = new Color(0.70f, 0.81f, 0.91f);
+    static readonly Color AmarilloMoneda = new Color(0.98f, 0.80f, 0.24f);
+    static readonly Color VerdeVictoria = new Color(0.36f, 0.87f, 0.55f);
+    static readonly Color RojoDerrota = new Color(0.93f, 0.40f, 0.35f);
+
     static void ConstruirHudYReglas()
     {
         var anterior = GameObject.Find("HUD Taller");
@@ -450,23 +516,38 @@ public static class TallerSetup
         escalador.referenceResolution = new Vector2(1920f, 1080f);
         escalador.matchWidthOrHeight = 0.5f;
 
-        var textoMonedas = CrearTexto(canvasGO.transform, "Monedas", "Monedas  0 / 5", 52,
-            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(40f, -30f), new Vector2(600f, 70f), TextAlignmentOptions.TopLeft);
+        var lienzo = canvasGO.transform;
 
-        var textoVidas = CrearTexto(canvasGO.transform, "Vidas", "Vidas  3     Puntos  0", 52,
-            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(-40f, -30f), new Vector2(700f, 70f), TextAlignmentOptions.TopRight);
+        // --- Monedas: icono de la moneda + contador, arriba a la izquierda ---
+        var marcadorMonedas = CrearPastilla(lienzo, "Marcador Monedas",
+            new Vector2(0f, 1f), new Vector2(36f, -30f), new Vector2(276f, 96f), FondoHud);
+        CrearIcono(marcadorMonedas.transform, "Icono", SpriteDeLaMoneda(), new Vector2(22f, 0f), 58f, TinteDe(RutaPrefabMoneda));
+        var textoMonedas = CrearEtiqueta(marcadorMonedas.transform, "Numero", "0 / 5", 52,
+            96f, 22f, TextAlignmentOptions.Left, TintaHud);
+        AjustarSolo(textoMonedas);
 
-        var textoMensaje = CrearTexto(canvasGO.transform, "Mensaje", "", 44,
-            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 60f), new Vector2(1400f, 70f), TextAlignmentOptions.Bottom);
-        textoMensaje.color = new Color(1f, 0.92f, 0.35f);
+        // --- Vidas: cara del personaje + "x N", arriba a la derecha ---
+        var marcadorVidas = CrearPastilla(lienzo, "Marcador Vidas",
+            new Vector2(1f, 1f), new Vector2(-36f, -30f), new Vector2(250f, 96f), FondoHud);
+        CrearIcono(marcadorVidas.transform, "Icono", SpriteDelJugador(), new Vector2(4f, 15f), 142f, TinteDe(RutaPrefabJugador));
+        var textoVidas = CrearEtiqueta(marcadorVidas.transform, "Numero", "\u00d7 3", 52,
+            124f, 22f, TextAlignmentOptions.Left, TintaHud);
+        AjustarSolo(textoVidas);
 
-        var panelVictoria = CrearPanel(canvasGO.transform, "Panel Victoria", "GANASTE",
-            new Color(0.06f, 0.35f, 0.15f, 0.88f));
-        var panelDerrota = CrearPanel(canvasGO.transform, "Panel Derrota", "PERDISTE",
-            new Color(0.4f, 0.06f, 0.1f, 0.88f));
+        // --- Puntos: debajo de las vidas, mas discreto ---
+        var marcadorPuntos = CrearPastilla(lienzo, "Marcador Puntos",
+            new Vector2(1f, 1f), new Vector2(-36f, -140f), new Vector2(250f, 62f), FondoHudSuave);
+        var textoPuntos = CrearEtiqueta(marcadorPuntos.transform, "Numero", "0 PTS", 34,
+            20f, 22f, TextAlignmentOptions.Right, TintaSuave);
+        AjustarSolo(textoPuntos);
+
+        // --- Mensaje del objetivo, abajo en el centro ---
+        var cartelMensaje = CrearPastilla(lienzo, "Cartel Mensaje",
+            new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(600f, 78f), FondoHud);
+        var textoMensaje = CenirAlTexto(cartelMensaje, "Texto", "Te faltan 5 monedas", 42, AmarilloMoneda);
+
+        var panelVictoria = CrearPanelFinal(lienzo, "Panel Victoria", "GANASTE", VerdeVictoria);
+        var panelDerrota = CrearPanelFinal(lienzo, "Panel Derrota", "PERDISTE", RojoDerrota);
 
         var gameController = Object.FindFirstObjectByType<GameController>(FindObjectsInactive.Include);
         if (gameController == null) { Debug.LogError("[Taller] No hay GameController en la escena."); return; }
@@ -477,7 +558,9 @@ public static class TallerSetup
         reglas.meta = Object.FindFirstObjectByType<VictoryZone>(FindObjectsInactive.Include);
         reglas.textoMonedas = textoMonedas;
         reglas.textoVidas = textoVidas;
+        reglas.textoPuntos = textoPuntos;
         reglas.textoMensaje = textoMensaje;
+        reglas.cartelMensaje = cartelMensaje;
         reglas.panelVictoria = panelVictoria;
         reglas.panelDerrota = panelDerrota;
         EditorUtility.SetDirty(reglas);
@@ -486,30 +569,193 @@ public static class TallerSetup
         panelDerrota.SetActive(false);
     }
 
-    static TextMeshProUGUI CrearTexto(Transform padre, string nombre, string texto, int tamano,
-        Vector2 anclaMin, Vector2 anclaMax, Vector2 pivote, Vector2 posicion, Vector2 medida,
-        TextAlignmentOptions alineacion)
+    /// <summary>
+    /// Pastilla redondeada de 9 cortes, dibujada por nosotros. Se genera una sola vez
+    /// como asset del proyecto: asi los estudiantes pueden verla y cambiarla, y no
+    /// dependemos de los recursos internos del editor.
+    /// </summary>
+    static Sprite SpritePastilla()
+    {
+        var existente = AssetDatabase.LoadAssetAtPath<Sprite>(RutaPastilla);
+        if (existente != null) return existente;
+
+        AsegurarCarpetas();
+
+        const int lado = 48;
+        const int radio = 16;
+        var textura = new Texture2D(lado, lado, TextureFormat.RGBA32, false);
+        for (var y = 0; y < lado; y++)
+        {
+            for (var x = 0; x < lado; x++)
+            {
+                // Distancia a la esquina redondeada mas cercana.
+                var dx = Mathf.Max((float)(radio - x), 0f, (float)(x - (lado - 1 - radio)));
+                var dy = Mathf.Max((float)(radio - y), 0f, (float)(y - (lado - 1 - radio)));
+                var distancia = Mathf.Sqrt(dx * dx + dy * dy);
+                var alfa = Mathf.Clamp01(radio - distancia + 0.5f);
+                textura.SetPixel(x, y, new Color(1f, 1f, 1f, alfa));
+            }
+        }
+        textura.Apply();
+        File.WriteAllBytes(RutaPastilla, textura.EncodeToPNG());
+        Object.DestroyImmediate(textura);
+        AssetDatabase.ImportAsset(RutaPastilla, ImportAssetOptions.ForceUpdate);
+
+        var importador = (TextureImporter)AssetImporter.GetAtPath(RutaPastilla);
+        importador.textureType = TextureImporterType.Sprite;
+        importador.spriteImportMode = SpriteImportMode.Single;
+        importador.spriteBorder = new Vector4(radio, radio, radio, radio);
+        importador.alphaIsTransparency = true;
+        importador.mipmapEnabled = false;
+        importador.SaveAndReimport();
+
+        return AssetDatabase.LoadAssetAtPath<Sprite>(RutaPastilla);
+    }
+
+    /// <summary>Deja que el numero se encoja si el estudiante pone valores enormes.</summary>
+    static void AjustarSolo(TextMeshProUGUI etiqueta)
+    {
+        var maximo = etiqueta.fontSize;
+        etiqueta.enableAutoSizing = true;
+        etiqueta.fontSizeMin = 24f;
+        etiqueta.fontSizeMax = maximo;
+    }
+
+    /// <summary>
+    /// El cartel del mensaje no puede ser una barra fija: el texto cambia de largo.
+    /// Con un layout horizontal y un ContentSizeFitter, la pastilla se cine al texto.
+    /// </summary>
+    static TextMeshProUGUI CenirAlTexto(GameObject pastilla, string nombre, string texto, int tamano, Color color)
+    {
+        var grupo = pastilla.AddComponent<HorizontalLayoutGroup>();
+        grupo.padding = new RectOffset(36, 36, 12, 14);
+        grupo.childAlignment = TextAnchor.MiddleCenter;
+        grupo.childControlWidth = true;
+        grupo.childControlHeight = true;
+        grupo.childForceExpandWidth = false;
+        grupo.childForceExpandHeight = false;
+
+        var cenidor = pastilla.AddComponent<ContentSizeFitter>();
+        cenidor.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        cenidor.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var go = new GameObject(nombre, typeof(RectTransform));
+        go.transform.SetParent(pastilla.transform, false);
+
+        var etiqueta = go.AddComponent<TextMeshProUGUI>();
+        etiqueta.text = texto;
+        etiqueta.fontSize = tamano;
+        etiqueta.alignment = TextAlignmentOptions.Center;
+        etiqueta.color = color;
+        etiqueta.fontStyle = FontStyles.Bold;
+        etiqueta.raycastTarget = false;
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(pastilla.GetComponent<RectTransform>());
+        return etiqueta;
+    }
+
+    /// <summary>
+    /// El arte del jugador es gris: el turquesa sale del color del SpriteRenderer.
+    /// Sin copiar ese tinte, el icono del HUD saldria blanco.
+    /// </summary>
+    static Color TinteDe(string rutaPrefab)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(rutaPrefab);
+        var dibujo = prefab != null ? prefab.GetComponent<SpriteRenderer>() : null;
+        return dibujo != null ? dibujo.color : Color.white;
+    }
+
+    static Sprite SpriteDeLaMoneda()
+    {
+        var moneda = AssetDatabase.LoadAssetAtPath<GameObject>(RutaPrefabMoneda);
+        if (moneda == null) return null;
+        var ficha = moneda.GetComponent<TokenInstance>();
+        if (ficha != null && ficha.idleAnimation != null && ficha.idleAnimation.Length > 0)
+            return ficha.idleAnimation[0];
+        var dibujo = moneda.GetComponent<SpriteRenderer>();
+        return dibujo != null ? dibujo.sprite : null;
+    }
+
+    static Sprite SpriteDelJugador()
+    {
+        var jugador = AssetDatabase.LoadAssetAtPath<GameObject>(RutaPrefabJugador);
+        if (jugador == null) return null;
+        var dibujo = jugador.GetComponent<SpriteRenderer>();
+        return dibujo != null ? dibujo.sprite : null;
+    }
+
+    /// <summary>Rectangulo redondeado de fondo: el ladrillo del HUD.</summary>
+    static GameObject CrearPastilla(Transform padre, string nombre, Vector2 ancla,
+        Vector2 posicion, Vector2 medida, Color color)
+    {
+        var go = new GameObject(nombre, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(padre, false);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = ancla;
+        rect.anchorMax = ancla;
+        rect.pivot = ancla;
+        rect.anchoredPosition = posicion;
+        rect.sizeDelta = medida;
+
+        var imagen = go.GetComponent<Image>();
+        imagen.sprite = SpritePastilla();
+        imagen.type = Image.Type.Sliced;
+        imagen.color = color;
+        imagen.raycastTarget = false;
+        return go;
+    }
+
+    /// <summary>
+    /// Ojo con los tamanos: el frame del jugador mide 128x126 pero el alien solo
+    /// ocupa unos 60x57 abajo a la izquierda, asi que su icono necesita una caja
+    /// bastante mas grande y un empujon en "posicion" para quedar centrado.
+    /// </summary>
+    static Image CrearIcono(Transform padre, string nombre, Sprite sprite, Vector2 posicion, float lado, Color tinte)
+    {
+        var go = new GameObject(nombre, typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(padre, false);
+
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 0.5f);
+        rect.anchorMax = new Vector2(0f, 0.5f);
+        rect.pivot = new Vector2(0f, 0.5f);
+        rect.anchoredPosition = posicion;
+        rect.sizeDelta = new Vector2(lado, lado);
+
+        var imagen = go.GetComponent<Image>();
+        imagen.sprite = sprite;
+        imagen.color = tinte;
+        imagen.preserveAspect = true;
+        imagen.raycastTarget = false;
+        if (sprite == null) imagen.enabled = false;
+        return imagen;
+    }
+
+    /// <summary>Texto que rellena su pastilla, con margenes a lado y lado.</summary>
+    static TextMeshProUGUI CrearEtiqueta(Transform padre, string nombre, string texto, int tamano,
+        float margenIzquierdo, float margenDerecho, TextAlignmentOptions alineacion, Color color)
     {
         var go = new GameObject(nombre, typeof(RectTransform));
         go.transform.SetParent(padre, false);
 
         var rect = go.GetComponent<RectTransform>();
-        rect.anchorMin = anclaMin;
-        rect.anchorMax = anclaMax;
-        rect.pivot = pivote;
-        rect.anchoredPosition = posicion;
-        rect.sizeDelta = medida;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(margenIzquierdo, 0f);
+        rect.offsetMax = new Vector2(-margenDerecho, 0f);
 
         var etiqueta = go.AddComponent<TextMeshProUGUI>();
         etiqueta.text = texto;
         etiqueta.fontSize = tamano;
         etiqueta.alignment = alineacion;
-        etiqueta.color = Color.white;
+        etiqueta.color = color;
         etiqueta.fontStyle = FontStyles.Bold;
+        etiqueta.raycastTarget = false;
         return etiqueta;
     }
 
-    static GameObject CrearPanel(Transform padre, string nombre, string titulo, Color color)
+    static GameObject CrearPanelFinal(Transform padre, string nombre, string titulo, Color acento)
     {
         var panel = new GameObject(nombre, typeof(RectTransform), typeof(Image));
         panel.transform.SetParent(padre, false);
@@ -519,15 +765,34 @@ public static class TallerSetup
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
-        panel.GetComponent<Image>().color = color;
 
-        CrearTexto(panel.transform, "Titulo", titulo, 140,
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 60f), new Vector2(1600f, 200f), TextAlignmentOptions.Center);
+        var velo = panel.GetComponent<Image>();
+        velo.color = new Color(0.02f, 0.05f, 0.09f, 0.82f);
+        velo.raycastTarget = false;
 
-        CrearTexto(panel.transform, "Instruccion", "Presiona  R  para volver a jugar", 56,
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -90f), new Vector2(1600f, 120f), TextAlignmentOptions.Center);
+        var tarjeta = CrearPastilla(panel.transform, "Tarjeta", new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(940f, 366f), new Color(0.06f, 0.12f, 0.19f, 0.98f));
+
+        var franja = CrearPastilla(tarjeta.transform, "Franja", new Vector2(0.5f, 1f),
+            new Vector2(0f, -18f), new Vector2(860f, 10f), acento);
+
+        var textoTitulo = CrearEtiqueta(tarjeta.transform, "Titulo", titulo, 128, 40f, 40f,
+            TextAlignmentOptions.Center, acento);
+        var rectTitulo = textoTitulo.GetComponent<RectTransform>();
+        rectTitulo.anchorMin = new Vector2(0f, 0.5f);
+        rectTitulo.anchorMax = new Vector2(1f, 0.5f);
+        rectTitulo.pivot = new Vector2(0.5f, 0.5f);
+        rectTitulo.anchoredPosition = new Vector2(0f, 40f);
+        rectTitulo.sizeDelta = new Vector2(-80f, 150f);
+
+        var textoTecla = CrearEtiqueta(tarjeta.transform, "Instruccion",
+            "Presiona  R  para volver a jugar", 46, 40f, 40f, TextAlignmentOptions.Center, TintaSuave);
+        var rectTecla = textoTecla.GetComponent<RectTransform>();
+        rectTecla.anchorMin = new Vector2(0f, 0.5f);
+        rectTecla.anchorMax = new Vector2(1f, 0.5f);
+        rectTecla.pivot = new Vector2(0.5f, 0.5f);
+        rectTecla.anchoredPosition = new Vector2(0f, -78f);
+        rectTecla.sizeDelta = new Vector2(-80f, 80f);
 
         return panel;
     }
@@ -535,7 +800,7 @@ public static class TallerSetup
     static void AsegurarCarpetas()
     {
         if (!AssetDatabase.IsValidFolder("Assets/_Taller")) AssetDatabase.CreateFolder("Assets", "_Taller");
-        foreach (var sub in new[] { "Scripts", "Editor", "Prefabs", "Scenes" })
+        foreach (var sub in new[] { "Scripts", "Editor", "Prefabs", "Scenes", "Arte" })
             if (!AssetDatabase.IsValidFolder("Assets/_Taller/" + sub))
                 AssetDatabase.CreateFolder("Assets/_Taller", sub);
     }

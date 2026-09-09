@@ -10,9 +10,13 @@ Público: estudiantes de 9° a 11°. Formato: una pareja por computador.
 1. Abre el proyecto. **No** debe aparecer la ventana *Tutorials* ni el *Welcome Dialog*.
 2. `Window ▸ Layouts ▸ Default` (el layout que dejó la plantilla de tutoriales queda raro).
 3. Abre `Assets/_Taller/Scenes/Nivel_Taller.unity` y dale **Play**. Comprueba:
-   - HUD arriba: `Monedas 0 / 5` y `Vidas 3   Puntos 0`.
-   - Abajo el mensaje amarillo `Te faltan 5 monedas`.
-   - Al juntar 5 monedas el mensaje cambia y el arco del final ya deja pasar.
+   - HUD arriba: la moneda con `0 / 5` a la izquierda, la cara del personaje con
+     `× 3` a la derecha y `0 PTS` debajo.
+   - Abajo, en su cartel, el mensaje amarillo `Te faltan 5 monedas`.
+   - Al juntar 5 monedas el contador se pone dorado, el mensaje cambia y el arco
+     del final ya deja pasar.
+   - Al llegar al arco el personaje hace el pulgar arriba **antes** de que salga
+     el cartel de GANASTE.
    - Al caer al hueco del piso 3 veces sale **PERDISTE**; con **R** vuelve a empezar.
 4. Copia la carpeta del proyecto a cada máquina (o clona el repo).
 
@@ -176,6 +180,45 @@ sirven, cada una para algo distinto.
 ```
 Que pongan `2` y `12`. Play. Explosión de risas garantizada.
 
+### 3.5 Si queda tiempo: dale tu estilo al HUD (5 min)
+
+El HUD es un objeto normal de la escena, no algo intocable. En **Hierarchy**,
+despliega **HUD Taller**:
+
+```
+HUD Taller
+  Marcador Monedas   -> Icono + Numero
+  Marcador Vidas     -> Icono + Numero
+  Marcador Puntos    -> Numero
+  Cartel Mensaje     -> Texto
+  Panel Victoria     -> Tarjeta (Franja, Titulo, Instruccion)
+  Panel Derrota      -> Tarjeta (Franja, Titulo, Instruccion)
+```
+
+Cosas de un minuto cada una:
+
+| Qué quieren | Dónde |
+|---|---|
+| Cambiar el color de una pastilla | Selecciona `Marcador Monedas` → *Image* → **Color** |
+| Cambiar el color o el tamaño del número | Selecciona `Numero` → *TextMeshPro* → **Vertex Color** / **Font Size** |
+| Cambiar el icono | Selecciona `Icono` → *Image* → **Source Image**: arrastra cualquier sprite, por ejemplo un donut de `Mod Assets` |
+| Mover un marcador | Selecciónalo y usa la herramienta **Rect** (tecla `T`) en la vista Game |
+| Cambiar el texto de GANASTE | `Panel Victoria → Tarjeta → Titulo` → **Text** |
+
+Y en el código, en `ReglasDelJuego.cs`, el formato del contador:
+
+```csharp
+textoMonedas.text = monedasRecogidas + " / " + monedasParaGanar;
+```
+
+Que prueben `"Monedas: " + monedasRecogidas` o lo que se les ocurra. También
+están ahí los colores `Apagado` y `Dorado`, que son los que usa el contador
+antes y después de completar las monedas.
+
+> Ojo: los paneles de victoria y derrota están **desactivados** en la escena.
+> Para verlos mientras los editan, actívalos con la casilla de arriba del
+> Inspector y **vuelve a desactivarlos** antes de darle Play.
+
 ---
 
 ## Bloque 4 · Muestra (50–60 min)
@@ -227,6 +270,21 @@ Cierre corto:
   Rigidbody2D: el sprite avanzaba a saltos de 50 Hz. Ahora rebobina al inicio del
   paso y entrega el destino con `MovePosition`, y el Fixed Timestep subió a 60 Hz.
   Es el único script original modificado.
+- **Colisiones lisas.** El tilemap `Level` tenía un `TilemapCollider2D` sin
+  `CompositeCollider2D`, así que cada tile era un collider suelto y el jugador
+  enganchaba en las costuras internas al saltar pegado a una pared. Ahora se
+  fusionan en un solo contorno (menú **Taller ▸ 4** para aplicarlo a otra escena).
+  Además, `KinematicObject` cancelaba **las dos** componentes de la velocidad al
+  golpear cualquier cosa en el aire, así que rozar una pared mataba el salto;
+  ahora solo cancela el eje que de verdad chocó.
+- **El salto extra tiene animación.** El Animator solo reacciona a `grounded`, que
+  ya es falso en el aire, así que el segundo salto no cambiaba nada y el personaje
+  parecía flotar. `PoderesDelJugador` ahora vuelve a lanzar el estado `Player-Jump`
+  desde el frame 0 en cada salto extra.
+- **La celebración de la meta se ve.** `PlayerEnteredVictoryZone` sí dispara el
+  trigger `victory`, pero el cartel ponía `Time.timeScale = 0` en el mismo
+  instante y eso congela también el Animator. Ahora el cartel espera
+  `segundosDeCelebracion` (1.8 s) antes de tapar la pantalla.
 - **Reaparición arreglada.** El objeto `SpawnPoint` del template no lleva el
   componente `SpawnPoint`; la referencia que usa `PlayerSpawn` al reaparecer es
   `model.spawnPoint` del GameController. El generador movía otro objeto, así que

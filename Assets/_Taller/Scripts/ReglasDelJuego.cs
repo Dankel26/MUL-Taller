@@ -1,4 +1,5 @@
-﻿using Platformer.Core;
+﻿using System.Collections;
+using Platformer.Core;
 using Platformer.Gameplay;
 using Platformer.Mechanics;
 using TMPro;
@@ -22,9 +23,9 @@ namespace Taller
         // Una variable es una cajita con un nombre que guarda un valor.
         // Cambia los números, guarda con Ctrl+S y vuelve a darle Play.
         //
-        // Estas cuatro variables se cambian SOLO aquí, en el código. Por eso
-        // llevan [NonSerialized]: para que Unity no guarde una copia dentro de
-        // la escena que le gane a lo que tú escribas.
+        // Estas variables se cambian SOLO aquí, en el código. Por eso llevan
+        // [NonSerialized]: para que Unity no guarde una copia dentro de la
+        // escena que le gane a lo que tú escribas.
 
         // Cuántas monedas hay que juntar para que se abra la meta.
         [System.NonSerialized] public int monedasParaGanar = 5;      // >>> CAMBIA ESTO <<<
@@ -38,11 +39,16 @@ namespace Taller
         // Puntos extra por cada moneda que recojas de más.
         [System.NonSerialized] public int bonoPorMonedaExtra = 50;   // >>> CAMBIA ESTO <<<
 
+        // Cuánto dura la celebración antes de que salga el cartel de GANASTE.
+        [System.NonSerialized] public float segundosDeCelebracion = 1.8f;   // >>> CAMBIA ESTO <<<
+
         [Header("Conexiones (esto ya viene puesto, no hay que tocarlo)")]
         public VictoryZone meta;
         public TMP_Text textoMonedas;
         public TMP_Text textoVidas;
+        public TMP_Text textoPuntos;
         public TMP_Text textoMensaje;
+        public GameObject cartelMensaje;
         public GameObject panelVictoria;
         public GameObject panelDerrota;
 
@@ -51,8 +57,17 @@ namespace Taller
         int puntos;
         int vidasRestantes;
         bool juegoTerminado;
+        bool puedeReiniciar;
         bool muerteYaContada;
         Collider2D colliderDeLaMeta;
+
+        // Colores del marcador de monedas: gris mientras faltan, dorado al completarlas.
+        static readonly Color Apagado = new Color(0.94f, 0.97f, 1f);
+        static readonly Color Dorado = new Color(0.98f, 0.80f, 0.24f);
+
+        // Lo que tarda el cartel de PERDISTE. Tiene que ser menor que los 2 segundos
+        // que el juego espera para revivirte, o reaparecerías detrás del cartel.
+        const float SegundosDeDerrota = 1.2f;
 
         // ---------- 2. LO QUE PASA CUANDO RECOGES UNA MONEDA ----------
         void AlRecogerMoneda(PlayerTokenCollision evento)
@@ -74,10 +89,13 @@ namespace Taller
         void ActualizarPantalla()
         {
             if (textoMonedas != null)
-                textoMonedas.text = "Monedas  " + monedasRecogidas + " / " + monedasParaGanar;
+                textoMonedas.text = monedasRecogidas + " / " + monedasParaGanar;
 
             if (textoVidas != null)
-                textoVidas.text = "Vidas  " + vidasRestantes + "     Puntos  " + puntos;
+                textoVidas.text = "× " + vidasRestantes;
+
+            if (textoPuntos != null)
+                textoPuntos.text = puntos + " PTS";
 
             // >>> CAMBIA ESTO <<<
             // Mientras no tengas suficientes monedas, la meta está cerrada.
@@ -106,7 +124,8 @@ namespace Taller
 
             if (vidasRestantes <= 0)
             {
-                TerminarJuego(panelDerrota);
+                juegoTerminado = true;
+                StartCoroutine(TerminarDentroDeUnRato(panelDerrota, SegundosDeDerrota));
             }
         }
 
@@ -119,7 +138,8 @@ namespace Taller
         void AlLlegarALaMeta(PlayerEnteredVictoryZone evento)
         {
             if (juegoTerminado) return;
-            TerminarJuego(panelVictoria);
+            juegoTerminado = true;
+            StartCoroutine(TerminarDentroDeUnRato(panelVictoria, segundosDeCelebracion));
         }
 
         // ============================================================
@@ -131,19 +151,27 @@ namespace Taller
         {
             if (colliderDeLaMeta != null)
                 colliderDeLaMeta.enabled = abierta;
+
+            if (textoMonedas != null)
+                textoMonedas.color = abierta ? Dorado : Apagado;
         }
 
         void MostrarMensaje(string texto)
         {
-            if (textoMensaje != null)
-                textoMensaje.text = texto;
+            if (textoMensaje != null) textoMensaje.text = texto;
+            if (cartelMensaje != null) cartelMensaje.SetActive(texto != "");
         }
 
-        void TerminarJuego(GameObject panel)
+        // Esperamos un momento antes de tapar la pantalla, para que se vea la
+        // animación de celebración o de muerte del personaje. Si congelamos el
+        // juego de una, el Animator tambien se congela y no se ve nada.
+        IEnumerator TerminarDentroDeUnRato(GameObject panel, float segundos)
         {
-            juegoTerminado = true;
+            yield return new WaitForSeconds(segundos);
+
             MostrarMensaje("");
             if (panel != null) panel.SetActive(true);
+            puedeReiniciar = true;
             Time.timeScale = 0f;
         }
 
@@ -154,6 +182,7 @@ namespace Taller
             puntos = 0;
             vidasRestantes = vidas;
             juegoTerminado = false;
+            puedeReiniciar = false;
             muerteYaContada = false;
 
             if (meta != null) colliderDeLaMeta = meta.GetComponent<Collider2D>();
@@ -165,7 +194,7 @@ namespace Taller
 
         void Update()
         {
-            if (!juegoTerminado) return;
+            if (!puedeReiniciar) return;
 
             var teclado = Keyboard.current;
             if (teclado != null && teclado.rKey.wasPressedThisFrame)

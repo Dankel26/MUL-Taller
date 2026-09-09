@@ -172,9 +172,13 @@ namespace Platformer.Mechanics
                     }
                     else
                     {
-                        //We are airborne, but hit something, so cancel vertical up and horizontal velocity.
-                        velocity.x *= 0;
-                        velocity.y = Mathf.Min(velocity.y, 0);
+                        //We are airborne and hit something. Only cancel the axis we were
+                        //actually moving along: cancelling both meant that brushing a wall
+                        //on the way up killed the jump, which reads as snagging on corners.
+                        if (yMovement)
+                            velocity.y = Mathf.Min(velocity.y, 0);
+                        else
+                            velocity.x = 0;
                     }
                     //remove shellDistance from actual move distance.
                     var modifiedDistance = hitBuffer[i].distance - shellRadius;
