@@ -145,7 +145,30 @@ if (monedasRecogidas > monedasParaGanar)
 }
 ```
 
-### 3.3 El superpoder (3 min)
+### 3.3 Si van rápido: sacar la variable al Inspector (3 min)
+
+Este es el mejor momento para explicar por qué existe `[System.NonSerialized]`,
+porque ahora ya lo vivieron.
+
+> "Unity normalmente **guarda una copia** de cada variable pública dentro de la
+> escena, para que la puedas ajustar sin tocar código. El problema es que esa
+> copia le gana al archivo: cambias el número en el código y no pasa nada.
+> `[System.NonSerialized]` le dice a Unity que no guarde copia."
+
+Que borren `[System.NonSerialized]` de una sola línea, por ejemplo `vidas`:
+
+```csharp
+public int vidas = 3;
+```
+
+Guardan, vuelven a Unity, seleccionan **GameController** en Hierarchy y ahí
+está el campo *Vidas* en el Inspector. Ahora que lo comprueben: cambiar el
+número en el código ya **no** hace nada, y el que manda es el del Inspector.
+
+Es la primera vez que ven una decisión de diseño de software: las dos opciones
+sirven, cada una para algo distinto.
+
+### 3.4 El superpoder (3 min)
 **`Assets/_Taller/Scripts/PoderesDelJugador.cs`**
 ```csharp
 [System.NonSerialized] public int saltosExtra = 1;        // 0 = normal, 1 = doble, 2 = triple
@@ -173,6 +196,7 @@ Cierre corto:
 |---|---|
 | Cambié el script y no pasa nada | Faltó guardar (Ctrl+S) o Unity aún está compilando (rueda abajo a la derecha). |
 | Cambié un número del Player y sigue igual | El `Max Speed` del Player sí vive en el Inspector: cámbialo ahí, no en el código. |
+| Borré `[System.NonSerialized]` y ahora el código no manda | Correcto, es justo lo que hace. Ahora el valor lo pone el Inspector del **GameController**. Para volver atrás, escribe el atributo otra vez. |
 | Apreté Escape y salió un menú raro | Es el menú de ejemplo que trae la plantilla, con textos de relleno. Vuelve a apretar **Escape** para cerrarlo. |
 | Pinté tiles y el jugador los atraviesa | Estaban pintando en una capa de fondo. Debe ser **Grid ▸ Level**. |
 | El jugador cae para siempre | Hay un hueco en el piso, o el `SpawnPoint` quedó fuera del nivel. |
@@ -192,3 +216,19 @@ Cierre corto:
 - Se eliminaron `Assets/Tutorials/` y los paquetes `com.unity.learn.iet-framework`, `com.unity.connect.share` y `com.unity.multiplayer.center` (el primero causaba un `NullReferenceException` cada vez que se daba Play).
 
 `Assets/Scenes/SampleScene.unity` quedó **intacta** como demo.
+
+## Ajustes de sensación de juego
+
+- **El salto ya no suena.** El campo `Jump Audio` del prefab del Player quedó vacío
+  a propósito. Siguen sonando pasos, monedas, aterrizaje y daño. Para devolverlo,
+  arrastra `Assets/Audio/jump.wav` a ese campo.
+- **Movimiento más fluido.** `KinematicObject` resuelve las colisiones asignando
+  `body.position`, que en Unity es un teleport y descarta la interpolación del
+  Rigidbody2D: el sprite avanzaba a saltos de 50 Hz. Ahora rebobina al inicio del
+  paso y entrega el destino con `MovePosition`, y el Fixed Timestep subió a 60 Hz.
+  Es el único script original modificado.
+- **Reaparición arreglada.** El objeto `SpawnPoint` del template no lleva el
+  componente `SpawnPoint`; la referencia que usa `PlayerSpawn` al reaparecer es
+  `model.spawnPoint` del GameController. El generador movía otro objeto, así que
+  el jugador arrancaba bien pero reaparecía enterrado en la posición del nivel
+  original. Ahora mueve la referencia real y le añade el componente.

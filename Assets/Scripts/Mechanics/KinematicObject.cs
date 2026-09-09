@@ -101,6 +101,8 @@ namespace Platformer.Mechanics
 
         protected virtual void FixedUpdate()
         {
+            var stepStart = body.position;
+
             //if already falling, fall faster than the jump speed, otherwise use normal gravity.
             if (velocity.y < 0)
                 velocity += gravityModifier * Physics2D.gravity * Time.deltaTime;
@@ -123,6 +125,16 @@ namespace Platformer.Mechanics
 
             PerformMovement(move, true);
 
+            //PerformMovement resolves collisions by assigning body.position, which is a
+            //teleport and discards Rigidbody2D interpolation, so the sprite advances in
+            //visible 50Hz steps. Rewind to where the step began and hand the resolved
+            //destination to the physics engine so it can interpolate between frames.
+            var resolved = body.position;
+            if (resolved != stepStart)
+            {
+                body.position = stepStart;
+                body.MovePosition(resolved);
+            }
         }
 
         void PerformMovement(Vector2 move, bool yMovement)

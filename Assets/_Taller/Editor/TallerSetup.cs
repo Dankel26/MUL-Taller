@@ -218,17 +218,33 @@ public static class TallerSetup
 
     static void ReubicarPuntosClave()
     {
-        var salida = Object.FindFirstObjectByType<SpawnPoint>(FindObjectsInactive.Include);
-        if (salida != null) salida.transform.position = new Vector3(SalidaX, PisoY + 1.5f, 0f);
+        // Ojo: el objeto "SpawnPoint" del template NO lleva el componente SpawnPoint.
+        // La referencia que de verdad usa PlayerSpawn al reaparecer es la del modelo
+        // del GameController, asi que hay que mover esa. Si se mueve otra, el jugador
+        // arranca bien pero reaparece donde estaba la salida del nivel original.
+        var salida = UbicarPuntoDeSalida();
+        if (salida == null)
+        {
+            Debug.LogError("[Taller] No encontre el punto de salida (model.spawnPoint).");
+        }
+        else
+        {
+            salida.position = new Vector3(SalidaX, PisoY + 1.5f, 0f);
+            if (salida.GetComponent<SpawnPoint>() == null) salida.gameObject.AddComponent<SpawnPoint>();
+            EditorUtility.SetDirty(salida.gameObject);
+        }
 
         var jugador = Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (jugador != null) jugador.transform.position = new Vector3(SalidaX, PisoY + 1.5f, 0f);
+        if (jugador == null) Debug.LogError("[Taller] No encontre al jugador.");
+        else jugador.transform.position = new Vector3(SalidaX, PisoY + 1.5f, 0f);
 
         var meta = Object.FindFirstObjectByType<VictoryZone>(FindObjectsInactive.Include);
-        if (meta != null) MontarMeta(meta);
+        if (meta == null) Debug.LogError("[Taller] No encontre la meta (VictoryZone).");
+        else MontarMeta(meta);
 
         // Una sola zona de muerte, ancha y debajo de todo el nivel.
         var zonas = Object.FindObjectsByType<DeathZone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (zonas.Length == 0) Debug.LogError("[Taller] No encontre ninguna DeathZone.");
         for (var i = 1; i < zonas.Length; i++)
             if (zonas[i] != null) Object.DestroyImmediate(zonas[i].gameObject);
 
@@ -243,6 +259,16 @@ public static class TallerSetup
                 caja.size = new Vector2((NivelHastaX - NivelDesdeX) + 60f, 10f);
             }
         }
+    }
+
+    static Transform UbicarPuntoDeSalida()
+    {
+        var control = Object.FindFirstObjectByType<GameController>(FindObjectsInactive.Include);
+        if (control != null && control.model != null && control.model.spawnPoint != null)
+            return control.model.spawnPoint;
+
+        var marca = Object.FindFirstObjectByType<SpawnPoint>(FindObjectsInactive.Include);
+        return marca != null ? marca.transform : null;
     }
 
     /// <summary>
