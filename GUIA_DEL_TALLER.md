@@ -177,8 +177,18 @@ sirven, cada una para algo distinto.
 ```csharp
 [System.NonSerialized] public int saltosExtra = 1;        // 0 = normal, 1 = doble, 2 = triple
 [System.NonSerialized] public float fuerzaSaltoExtra = 7f;
+[System.NonSerialized] public float saltoMinimo = 0.7f;   // cuánto salta si solo TOCAS la tecla
 ```
 Que pongan `2` y `12`. Play. Explosión de risas garantizada.
+
+> Los saltos extra salen siempre completos, sin depender de cuánto dejes apretada
+> la tecla. El que sí responde a eso es el primer salto: `saltoMinimo` decide
+> cuánto te levantas si solo la tocas. Con `1` el salto deja de ser variable.
+
+> **Para quien va muy adelantado.** La guía del estudiante tiene al final del
+> bloque 3 una tanda de retos graduados (fácil / medio / difícil): escribir el
+> resumen del cartel final, bono progresivo, mensajes distintos según cuántas
+> monedas falten, medallas por puntaje. Mandálos ahí en vez de inventarles trabajo.
 
 ### 3.5 Si queda tiempo: dale tu estilo al HUD (5 min)
 
@@ -277,6 +287,15 @@ Cierre corto:
   Además, `KinematicObject` cancelaba **las dos** componentes de la velocidad al
   golpear cualquier cosa en el aire, así que rozar una pared mataba el salto;
   ahora solo cancela el eje que de verdad chocó.
+- **El salto se siente firme.** `PlayerController` pone `stopJump` al soltar la
+  tecla y `ComputeVelocity` hace `velocity.y *= jumpDeceleration`, que en la escena
+  vale **0**: soltar borraba el impulso entero, así que el salto era binario
+  (toque = brinquito, mantener = salto completo). Ahora `PoderesDelJugador` sostiene
+  un "piso" de velocidad que decae exactamente al ritmo de la gravedad, así que
+  nunca regala altura y solo impide el corte de golpe. El salto normal conserva
+  como mínimo `saltoMinimo` de su impulso; los saltos extra se protegen enteros.
+  Además el `gravityModifier` del Player pasó de `1` a `1.5`: se cae más rápido de
+  lo que se sube, que es el truco clásico para que no se sienta flotante.
 - **El salto extra tiene animación.** El Animator solo reacciona a `grounded`, que
   ya es falso en el aire, así que el segundo salto no cambiaba nada y el personaje
   parecía flotar. `PoderesDelJugador` ahora vuelve a lanzar el estado `Player-Jump`

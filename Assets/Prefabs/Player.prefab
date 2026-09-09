@@ -52,7 +52,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   minGroundNormalY: 0.9
-  gravityModifier: 1
+  gravityModifier: 1.5
   velocity: {x: 0, y: 0}
   jumpAudio: {fileID: 0}
   respawnAudio: {fileID: 8300000, guid: e18959d46b63f3c4c8cc020a433cf848, type: 3}

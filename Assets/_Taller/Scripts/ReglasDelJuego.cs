@@ -51,6 +51,8 @@ namespace Taller
         public GameObject cartelMensaje;
         public GameObject panelVictoria;
         public GameObject panelDerrota;
+        public TMP_Text resumenVictoria;
+        public TMP_Text resumenDerrota;
 
         // Estas variables las lleva el juego solo mientras juegas.
         int monedasRecogidas;
@@ -125,7 +127,7 @@ namespace Taller
             if (vidasRestantes <= 0)
             {
                 juegoTerminado = true;
-                StartCoroutine(TerminarDentroDeUnRato(panelDerrota, SegundosDeDerrota));
+                StartCoroutine(TerminarDentroDeUnRato(panelDerrota, resumenDerrota, SegundosDeDerrota));
             }
         }
 
@@ -139,7 +141,7 @@ namespace Taller
         {
             if (juegoTerminado) return;
             juegoTerminado = true;
-            StartCoroutine(TerminarDentroDeUnRato(panelVictoria, segundosDeCelebracion));
+            StartCoroutine(TerminarDentroDeUnRato(panelVictoria, resumenVictoria, segundosDeCelebracion));
         }
 
         // ============================================================
@@ -165,11 +167,17 @@ namespace Taller
         // Esperamos un momento antes de tapar la pantalla, para que se vea la
         // animación de celebración o de muerte del personaje. Si congelamos el
         // juego de una, el Animator tambien se congela y no se ve nada.
-        IEnumerator TerminarDentroDeUnRato(GameObject panel, float segundos)
+        IEnumerator TerminarDentroDeUnRato(GameObject panel, TMP_Text resumen, float segundos)
         {
             yield return new WaitForSeconds(segundos);
 
             MostrarMensaje("");
+
+            // >>> CAMBIA ESTO <<<  lo que aparece en el cartel del final.
+            if (resumen != null)
+                resumen.text = "Monedas " + monedasRecogidas + " / " + monedasParaGanar
+                             + "     Puntos " + puntos;
+
             if (panel != null) panel.SetActive(true);
             puedeReiniciar = true;
             Time.timeScale = 0f;

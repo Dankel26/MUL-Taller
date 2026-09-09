@@ -546,8 +546,9 @@ public static class TallerSetup
             new Vector2(0.5f, 0f), new Vector2(0f, 46f), new Vector2(600f, 78f), FondoHud);
         var textoMensaje = CenirAlTexto(cartelMensaje, "Texto", "Te faltan 5 monedas", 42, AmarilloMoneda);
 
-        var panelVictoria = CrearPanelFinal(lienzo, "Panel Victoria", "GANASTE", VerdeVictoria);
-        var panelDerrota = CrearPanelFinal(lienzo, "Panel Derrota", "PERDISTE", RojoDerrota);
+        TextMeshProUGUI resumenVictoria, resumenDerrota;
+        var panelVictoria = CrearPanelFinal(lienzo, "Panel Victoria", "GANASTE", VerdeVictoria, out resumenVictoria);
+        var panelDerrota = CrearPanelFinal(lienzo, "Panel Derrota", "PERDISTE", RojoDerrota, out resumenDerrota);
 
         var gameController = Object.FindFirstObjectByType<GameController>(FindObjectsInactive.Include);
         if (gameController == null) { Debug.LogError("[Taller] No hay GameController en la escena."); return; }
@@ -563,6 +564,8 @@ public static class TallerSetup
         reglas.cartelMensaje = cartelMensaje;
         reglas.panelVictoria = panelVictoria;
         reglas.panelDerrota = panelDerrota;
+        reglas.resumenVictoria = resumenVictoria;
+        reglas.resumenDerrota = resumenDerrota;
         EditorUtility.SetDirty(reglas);
 
         panelVictoria.SetActive(false);
@@ -755,7 +758,8 @@ public static class TallerSetup
         return etiqueta;
     }
 
-    static GameObject CrearPanelFinal(Transform padre, string nombre, string titulo, Color acento)
+    static GameObject CrearPanelFinal(Transform padre, string nombre, string titulo, Color acento,
+        out TextMeshProUGUI resumen)
     {
         var panel = new GameObject(nombre, typeof(RectTransform), typeof(Image));
         panel.transform.SetParent(padre, false);
@@ -771,7 +775,7 @@ public static class TallerSetup
         velo.raycastTarget = false;
 
         var tarjeta = CrearPastilla(panel.transform, "Tarjeta", new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(940f, 366f), new Color(0.06f, 0.12f, 0.19f, 0.98f));
+            Vector2.zero, new Vector2(940f, 424f), new Color(0.06f, 0.12f, 0.19f, 0.98f));
 
         var franja = CrearPastilla(tarjeta.transform, "Franja", new Vector2(0.5f, 1f),
             new Vector2(0f, -18f), new Vector2(860f, 10f), acento);
@@ -782,8 +786,17 @@ public static class TallerSetup
         rectTitulo.anchorMin = new Vector2(0f, 0.5f);
         rectTitulo.anchorMax = new Vector2(1f, 0.5f);
         rectTitulo.pivot = new Vector2(0.5f, 0.5f);
-        rectTitulo.anchoredPosition = new Vector2(0f, 40f);
+        rectTitulo.anchoredPosition = new Vector2(0f, 78f);
         rectTitulo.sizeDelta = new Vector2(-80f, 150f);
+
+        var textoResumen = CrearEtiqueta(tarjeta.transform, "Resumen", "Monedas 5 / 5     Puntos 250",
+            42, 40f, 40f, TextAlignmentOptions.Center, AmarilloMoneda);
+        var rectResumen = textoResumen.GetComponent<RectTransform>();
+        rectResumen.anchorMin = new Vector2(0f, 0.5f);
+        rectResumen.anchorMax = new Vector2(1f, 0.5f);
+        rectResumen.pivot = new Vector2(0.5f, 0.5f);
+        rectResumen.anchoredPosition = new Vector2(0f, -24f);
+        rectResumen.sizeDelta = new Vector2(-80f, 64f);
 
         var textoTecla = CrearEtiqueta(tarjeta.transform, "Instruccion",
             "Presiona  R  para volver a jugar", 46, 40f, 40f, TextAlignmentOptions.Center, TintaSuave);
@@ -791,9 +804,10 @@ public static class TallerSetup
         rectTecla.anchorMin = new Vector2(0f, 0.5f);
         rectTecla.anchorMax = new Vector2(1f, 0.5f);
         rectTecla.pivot = new Vector2(0.5f, 0.5f);
-        rectTecla.anchoredPosition = new Vector2(0f, -78f);
+        rectTecla.anchoredPosition = new Vector2(0f, -122f);
         rectTecla.sizeDelta = new Vector2(-80f, 80f);
 
+        resumen = textoResumen;
         return panel;
     }
 
