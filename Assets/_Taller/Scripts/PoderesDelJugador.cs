@@ -23,15 +23,15 @@ namespace Taller
         // 0 = salto normal.  1 = doble salto.  2 = triple salto.
         [System.NonSerialized] public int saltosExtra = 1;           // >>> CAMBIA ESTO <<<
 
-        // Qué tan fuerte es el salto extra. El salto normal es 7.
-        [System.NonSerialized] public float fuerzaSaltoExtra = 7f;   // >>> CAMBIA ESTO <<<
+        // Qué tan fuerte es el salto extra. El salto normal es 13.5.
+        [System.NonSerialized] public float fuerzaSaltoExtra = 12.5f;   // >>> CAMBIA ESTO <<<
 
         // Cuánto salta si sueltas la tecla de inmediato, comparado con dejarla
         // apretada hasta el final.
         //   1    = la tecla no importa: el salto siempre sale completo
-        //   0.8  = soltar de una te da como dos tercios de la altura (así está)
-        //   0.4  = soltar te deja a ras del suelo
-        [System.NonSerialized] public float saltoMinimo = 0.8f;      // >>> CAMBIA ESTO <<<
+        //   0.65 = soltar de una te da un tercio de la altura (así está)
+        //   0.3  = soltar te deja casi a ras del suelo
+        [System.NonSerialized] public float saltoMinimo = 0.65f;      // >>> CAMBIA ESTO <<<
 
         PlayerController jugador;
         Animator animacion;

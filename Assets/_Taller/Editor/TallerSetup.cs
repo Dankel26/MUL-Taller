@@ -176,8 +176,8 @@ public static class TallerSetup
         }
 
         // Dos plataformas flotantes de ejemplo, para que se vea que se puede.
-        PintarPlataforma(mapa, superficie, 12f, 3.2f, 6);
-        PintarPlataforma(mapa, superficie, 22f, 5.2f, 6);
+        PintarPlataforma(mapa, superficie, 12f, 1.6f, 6);
+        PintarPlataforma(mapa, superficie, 22f, 3.2f, 6);
 
         mapa.CompressBounds();
         mapa.RefreshAllTiles();
@@ -286,6 +286,8 @@ public static class TallerSetup
         var control = Object.FindFirstObjectByType<GameController>(FindObjectsInactive.Include);
         if (control == null || control.model == null) return;
         control.model.jumpDeceleration = 1f;
+        // jumpModifier en 1 para que jumpTakeOffSpeed del Inspector sea la fuerza real.
+        control.model.jumpModifier = 1f;
         EditorUtility.SetDirty(control);
     }
 
@@ -398,8 +400,8 @@ public static class TallerSetup
         if (monedaPrefab != null)
         {
             ColocarPrefab(monedaPrefab, padreMonedas, new Vector3(5f, PisoY + 1.2f, 0f));
-            ColocarPrefab(monedaPrefab, padreMonedas, new Vector3(13f, PisoY + 4.4f, 0f));
-            ColocarPrefab(monedaPrefab, padreMonedas, new Vector3(23f, PisoY + 6.4f, 0f));
+            ColocarPrefab(monedaPrefab, padreMonedas, new Vector3(13f, PisoY + 2.6f, 0f));
+            ColocarPrefab(monedaPrefab, padreMonedas, new Vector3(23f, PisoY + 4.2f, 0f));
         }
 
         var padreEnemigos = BuscarOCrear("Enemies");

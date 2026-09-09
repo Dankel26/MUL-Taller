@@ -253461,7 +253461,7 @@ MonoBehaviour:
     virtualCamera: {fileID: 1946717928}
     player: {fileID: 838423048}
     spawnPoint: {fileID: 421228357}
-    jumpModifier: 0.9
+    jumpModifier: 1
     jumpDeceleration: 1
 --- !u!4 &1754240608
 Transform:

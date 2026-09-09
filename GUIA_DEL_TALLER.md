@@ -51,9 +51,9 @@ Muestra en el proyector, ellos repiten:
 
 ### Primer cambio (que lo hagan todos)
 1. En Hierarchy selecciona **Player**.
-2. En el Inspector busca *Player Controller* → `Max Speed`. Cámbialo de `3` a `12`.
+2. En el Inspector busca *Player Controller* → `Max Speed`. Cámbialo de `6.5` a `15`.
 3. Play. Corre como loco.
-4. Ahora `Jump Take Off Speed` de `7` a `15`. Play. Salta hasta las nubes.
+4. Ahora `Jump Take Off Speed` de `13.5` a `24`. Play. Salta hasta las nubes.
 
 > Aquí es donde se les prende el bombillo. No sigas hasta que todos lo hayan logrado.
 
@@ -295,10 +295,28 @@ Cierre corto:
   la gravedad, y si sueltas la tecla te baja hasta ella. `saltoMinimo` decide qué
   tan alta es esa mínima, y **los saltos extra ni siquiera pasan por ahí**: salen
   enteros siempre. Con `saltoMinimo = 1` el salto deja de ser variable del todo.
-  Medido en el proyecto: mantener apretado sube 1.97 u, un toque 1.17 u, y el salto
-  extra 2.44 u pase lo que pase con la tecla.
-  Además el `gravityModifier` del Player pasó de `1` a `1.5`: se cae más rápido de
-  lo que se sube, que es el truco clásico para que no se sienta flotante.
+- **La escala física se reajustó entera.** El salto original duraba **1.16 s** en el
+  aire y subía 3.6 veces la altura del personaje: un salto lunar, y ningún ajuste
+  del recorte lo arreglaba. Ahora la gravedad global es `-45` en vez de `-9.81`, con
+  las velocidades subidas en proporción, así que **la altura máxima es la misma pero
+  el vuelo dura la mitad**. Medido simulando la integración de `KinematicObject`:
+
+  | | Antes | Ahora |
+  |---|---|---|
+  | Altura máxima | 2.02 u | 1.91 u |
+  | Subida | 0.64 s | 0.28 s |
+  | Vuelo completo | 1.16 s | 0.55 s |
+  | Solo un toque | — | 0.65 u |
+  | Salto extra | — | 1.63 u |
+
+  Valores tocados: `Physics2D.gravity` `-9.81` → `-45`; del Player `maxSpeed` `3` →
+  `6.5`, `jumpTakeOffSpeed` `7` → `13.5`, `gravityModifier` `1.5` → `1.35`;
+  `jumpModifier` del modelo `0.9` → `1` (para que `jumpTakeOffSpeed` sea la fuerza
+  real); `fuerzaSaltoExtra` `7` → `12.5`. El `Bouncepad` venía con
+  `verticalVelocity: 0` (no hacía nada) y quedó en `19`; el `Speedpad` pasó de `5`
+  a `13`, porque con `5` ahora frenaría al jugador en vez de acelerarlo.
+  Las plataformas de `Nivel_Taller` bajaron a 1.6 y 3.2 para que se alcancen de un
+  solo salto, sin depender del doble salto.
 - **El salto extra tiene animación.** El Animator solo reacciona a `grounded`, que
   ya es falso en el aire, así que el segundo salto no cambiaba nada y el personaje
   parecía flotar. `PoderesDelJugador` ahora vuelve a lanzar el estado `Player-Jump`
