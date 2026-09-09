@@ -289,11 +289,14 @@ Cierre corto:
   ahora solo cancela el eje que de verdad chocó.
 - **El salto se siente firme.** `PlayerController` pone `stopJump` al soltar la
   tecla y `ComputeVelocity` hace `velocity.y *= jumpDeceleration`, que en la escena
-  vale **0**: soltar borraba el impulso entero, así que el salto era binario
-  (toque = brinquito, mantener = salto completo). Ahora `PoderesDelJugador` sostiene
-  un "piso" de velocidad que decae exactamente al ritmo de la gravedad, así que
-  nunca regala altura y solo impide el corte de golpe. El salto normal conserva
-  como mínimo `saltoMinimo` de su impulso; los saltos extra se protegen enteros.
+  valía **0**: soltar no reducía el salto, lo **borraba**. Por eso era de todo o
+  nada. Ahora `PoderesDelJugador` apaga ese recorte (`jumpDeceleration = 1`) y hace
+  el suyo: mientras subes lleva una trayectoria mínima que decae al mismo ritmo que
+  la gravedad, y si sueltas la tecla te baja hasta ella. `saltoMinimo` decide qué
+  tan alta es esa mínima, y **los saltos extra ni siquiera pasan por ahí**: salen
+  enteros siempre. Con `saltoMinimo = 1` el salto deja de ser variable del todo.
+  Medido en el proyecto: mantener apretado sube 1.97 u, un toque 1.17 u, y el salto
+  extra 2.44 u pase lo que pase con la tecla.
   Además el `gravityModifier` del Player pasó de `1` a `1.5`: se cae más rápido de
   lo que se sube, que es el truco clásico para que no se sienta flotante.
 - **El salto extra tiene animación.** El Animator solo reacciona a `grounded`, que

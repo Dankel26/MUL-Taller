@@ -1,4 +1,6 @@
-﻿using Platformer.Mechanics;
+﻿using Platformer.Core;
+using Platformer.Mechanics;
+using Platformer.Model;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -24,22 +26,22 @@ namespace Taller
         // Qué tan fuerte es el salto extra. El salto normal es 7.
         [System.NonSerialized] public float fuerzaSaltoExtra = 7f;   // >>> CAMBIA ESTO <<<
 
-        // Cuánto salta si solo TOCAS la tecla, sin dejarla apretada.
-        //   1    = la tecla no importa, siempre salta completo
-        //   0.7  = tocar da la mitad de la altura (así está ahora)
-        //   0    = tocar apenas casi no te levanta
-        [System.NonSerialized] public float saltoMinimo = 0.7f;      // >>> CAMBIA ESTO <<<
+        // Cuánto salta si sueltas la tecla de inmediato, comparado con dejarla
+        // apretada hasta el final.
+        //   1    = la tecla no importa: el salto siempre sale completo
+        //   0.8  = soltar de una te da como dos tercios de la altura (así está)
+        //   0.4  = soltar te deja a ras del suelo
+        [System.NonSerialized] public float saltoMinimo = 0.8f;      // >>> CAMBIA ESTO <<<
 
         PlayerController jugador;
         Animator animacion;
         InputAction accionSaltar;
         int saltosUsados;
 
-        // Mientras un salto sube, guardamos aquí la velocidad que le corresponde y no
-        // dejamos que baje de ahí. El valor decae al mismo ritmo que la gravedad, así
-        // que nunca regala altura: solo impide que soltar la tecla lo corte en seco.
+        // Trayectoria mínima garantizada del salto normal. Va bajando con la
+        // gravedad, igual que la velocidad real del personaje.
         float pisoDelSalto;
-        bool protegiendoSalto;
+        bool saltoNormalEnCurso;
         PlayerController.JumpState estadoPrevio;
 
         // El Animator solo sabe si estás en el suelo o no, así que en el salto extra
@@ -52,10 +54,16 @@ namespace Taller
             jugador = GetComponent<PlayerController>();
             animacion = GetComponent<Animator>();
             accionSaltar = InputSystem.actions.FindAction("Player/Jump");
+
+            // El template recorta el salto por su cuenta: al soltar la tecla multiplica
+            // la velocidad por "jumpDeceleration", que vale 0, o sea que BORRA el salto
+            // de golpe. Por eso se sentía de todo o nada. Lo desactivamos (1 = no
+            // recorta) y a partir de aquí el único que decide es saltoMinimo.
+            Simulation.GetModel<PlatformerModel>().jumpDeceleration = 1f;
         }
 
         // Se ejecuta después de que el jugador ya calculó su movimiento normal,
-        // para que el salto extra no se pierda.
+        // para que lo que escribamos aquí no se pierda.
         void LateUpdate()
         {
             if (accionSaltar == null) return;
@@ -67,18 +75,15 @@ namespace Taller
                                   && estadoPrevio != PlayerController.JumpState.Jumping;
             estadoPrevio = estado;
 
-            if (jugador.IsGrounded)
-            {
+            if (jugador.IsGrounded && jugador.velocity.y <= 0f)
                 saltosUsados = 0;
-                if (!acabaDeDespegar) protegiendoSalto = false;
-            }
 
             if (jugador.controlEnabled)
             {
                 if (acabaDeDespegar && jugador.velocity.y > 0f)
                 {
-                    // Salto normal: garantizamos una altura mínima aunque sueltes al instante.
-                    ProtegerSalto(jugador.velocity.y * saltoMinimo);
+                    pisoDelSalto = jugador.velocity.y * saltoMinimo;
+                    saltoNormalEnCurso = true;
                 }
                 // Si estoy en el aire, presiono saltar y todavía me quedan saltos...
                 else if (!jugador.IsGrounded
@@ -88,41 +93,34 @@ namespace Taller
                     saltosUsados = saltosUsados + 1;
                     jugador.velocity.y = fuerzaSaltoExtra;
 
-                    // El salto extra se protege entero: no depende de cuánto tiempo
-                    // dejes apretada la tecla.
-                    ProtegerSalto(fuerzaSaltoExtra);
+                    // Los saltos extra salen enteros: la tecla ya no los recorta.
+                    saltoNormalEnCurso = false;
 
                     if (animacion != null && animacion.HasState(0, EstadoSalto))
                         animacion.Play(EstadoSalto, 0, 0f);
                 }
             }
 
-            SostenerSalto();
+            RecortarSaltoSiSueltas();
         }
 
-        void ProtegerSalto(float velocidad)
+        void RecortarSaltoSiSueltas()
         {
-            pisoDelSalto = velocidad;
-            protegiendoSalto = true;
-        }
-
-        void SostenerSalto()
-        {
-            if (!protegiendoSalto) return;
-
-            // El piso baja al mismo ritmo al que la gravedad frena al personaje.
-            pisoDelSalto = pisoDelSalto + Physics2D.gravity.y * Time.deltaTime;
-
-            // Llegamos al tope del salto, o chocamos con un techo: ya no hay nada
-            // que proteger.
-            if (pisoDelSalto <= 0f || jugador.velocity.y <= 0f)
+            // Ya dejamos de subir: llegamos al tope o chocamos con un techo.
+            if (jugador.velocity.y <= 0f)
             {
-                protegiendoSalto = false;
+                saltoNormalEnCurso = false;
                 return;
             }
 
-            if (jugador.velocity.y < pisoDelSalto)
-                jugador.velocity.y = pisoDelSalto;
+            if (!saltoNormalEnCurso) return;
+
+            // El piso baja al mismo ritmo al que la gravedad frena al personaje, así
+            // que nunca regala altura: solo pone un mínimo.
+            pisoDelSalto = pisoDelSalto + Physics2D.gravity.y * Time.deltaTime;
+
+            if (!accionSaltar.IsPressed() && jugador.velocity.y > pisoDelSalto)
+                jugador.velocity.y = Mathf.Max(pisoDelSalto, 0f);
         }
     }
 }

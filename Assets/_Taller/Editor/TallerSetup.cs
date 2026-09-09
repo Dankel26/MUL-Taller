@@ -81,6 +81,7 @@ public static class TallerSetup
         var escena = EditorSceneManager.OpenScene(RutaNivelTaller, OpenSceneMode.Single);
 
         VaciarNivel();
+        NeutralizarRecorteDeSalto();
         PintarPiso();
         PintarCielo();
         FusionarColisionesDelTilemap();
@@ -122,6 +123,7 @@ public static class TallerSetup
     {
         var escena = EditorSceneManager.OpenScene(RutaSampleScene, OpenSceneMode.Single);
         FusionarColisionesDelTilemap();
+        NeutralizarRecorteDeSalto();
         EditorSceneManager.MarkSceneDirty(escena);
         EditorSceneManager.SaveScene(escena);
     }
@@ -271,6 +273,20 @@ public static class TallerSetup
             EditorUtility.SetDirty(mapa.gameObject);
             Debug.Log("[Taller] Colisiones fusionadas en el tilemap '" + mapa.gameObject.name + "'.");
         }
+    }
+
+    /// <summary>
+    /// Quien recorta el salto al soltar la tecla es PoderesDelJugador, no el modelo.
+    /// Dejamos jumpDeceleration en 1 (no recorta) para que el Inspector no diga una
+    /// cosa distinta de la que pasa al jugar; el componente lo vuelve a poner en 1
+    /// al arrancar, asi que tambien funciona en escenas que no pasen por aqui.
+    /// </summary>
+    static void NeutralizarRecorteDeSalto()
+    {
+        var control = Object.FindFirstObjectByType<GameController>(FindObjectsInactive.Include);
+        if (control == null || control.model == null) return;
+        control.model.jumpDeceleration = 1f;
+        EditorUtility.SetDirty(control);
     }
 
     static void ReubicarPuntosClave()

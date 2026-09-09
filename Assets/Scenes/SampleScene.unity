@@ -253462,7 +253462,7 @@ MonoBehaviour:
     player: {fileID: 838423048}
     spawnPoint: {fileID: 421228357}
     jumpModifier: 0.9
-    jumpDeceleration: 0
+    jumpDeceleration: 1
 --- !u!4 &1754240608
 Transform:
   m_ObjectHideFlags: 0
